@@ -15,6 +15,7 @@ const AxiosClient = async (axiosParams) => {
         : "application/json",
       Authorization: `Bearer ${token}`,
     },
+    timeout: 30000, // 30 second timeout
   };
   try {
     let options = {

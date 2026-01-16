@@ -95,6 +95,10 @@ const ApiService = {
 export const startConversation = async (payload, onChunk) => {
   const token = getVariable('km_user_token');
 
+  if (!token) {
+    throw new Error("Authentication token not found. Please log in again.");
+  }
+
   const response = await fetch(`${apiBaseUrl}chat-bot/chat`, {
     method: 'POST',
     headers: {
@@ -105,12 +109,15 @@ export const startConversation = async (payload, onChunk) => {
   });
 
   if (!response.ok) {
-    throw new Error(`Network error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('Response error:', response.status, response.statusText, errorText);
+    throw new Error(`Server error (${response.status}): ${response.statusText}. ${errorText || 'Please try again.'}`);
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
+  let receivedData = false;
 
   try {
     while (true) {
@@ -119,6 +126,7 @@ export const startConversation = async (payload, onChunk) => {
 
       const chunkStr = decoder.decode(value, { stream: true });
       buffer += chunkStr;
+      receivedData = true;
  
       const parts = buffer.split('\n');
       buffer = parts.pop();
@@ -135,7 +143,7 @@ export const startConversation = async (payload, onChunk) => {
           const parsed = JSON.parse(jsonString);
           onChunk(parsed);
         } catch (err) {
-          
+          // If it's not JSON, treat it as plain text
           onChunk(jsonString);
         }
       }
@@ -150,8 +158,16 @@ export const startConversation = async (payload, onChunk) => {
         onChunk(remaining);
       }
     }
+
+    if (!receivedData) {
+      throw new Error("No response received from server");
+    }
   } finally {
-    try { reader.releaseLock(); } catch (e) {}
+    try { 
+      reader.releaseLock(); 
+    } catch (e) {
+      console.warn("Error releasing reader lock:", e);
+    }
   }
 };
 

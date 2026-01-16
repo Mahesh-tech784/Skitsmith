@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./BotList.scss";
 import { Table, Pagination, Button } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
@@ -7,61 +7,48 @@ import { toast } from "react-toastify";
 
 const BotList = () => {
   const [bots, setBots] = useState([]);
-  const [formData, setFormData] = useState({ bot_name: "", description: "" });
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-
+  const [loading, setLoading] = useState(true);
   const botsPerPage = 4;
+  const cacheRef = useRef(null);
+  const cacheTimeRef = useRef(null);
+  const CACHE_DURATION = 5 * 60 * 1000; // Cache for 5 minutes
 
   useEffect(() => {
     fetchAllChatBots();
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const fetchAllChatBots = async () => {
+    // Check cache first
+    if (cacheRef.current && cacheTimeRef.current) {
+      const timeSinceCache = Date.now() - cacheTimeRef.current;
+      if (timeSinceCache < CACHE_DURATION) {
+        setBots(cacheRef.current);
+        setLoading(false);
+        return;
+      }
+    }
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
     setLoading(true);
-
-    const { bot_name, description } = formData;
-
-    if (!bot_name || !description) {
-      toast.error("Please fill in all fields.");
-      setLoading(false);
-
-      return;
-    }
-
-    let { data, error } = await ApiService.createChatBot(formData);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.response.data.message);
-      return;
-    }
-
-    if (data) {
-      fetchAllChatBots();
-      toast.success(data.message);
-    }
-
-    setFormData({ bot_name: "", description: "" });
-  };
-
-  const fetchAllChatBots = async (e) => {
+    setError("");
     let { data, error } = await ApiService.getAllChatBots({});
 
     if (error) {
-      toast.error(error.response.data.message);
+      setError("Failed to load chatbot. Please refresh the page.");
+      setLoading(false);
       return;
     }
 
-    if (data) {
+    if (data && data.result) {
+      // Cache the data
+      cacheRef.current = data.result;
+      cacheTimeRef.current = Date.now();
       setBots(data.result);
+    } else {
+      setError("No chatbots found. Please contact support.");
     }
+    setLoading(false);
   };
 
   // Pagination logic
@@ -77,129 +64,168 @@ const BotList = () => {
     navigate(`${url}?id=${id}&namespace_id=${namespace_id}`);
   };
 
-  return (
-    <div className="bot-list-container container-fluid py-3">
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <div className="card shadow-sm p-4  rounded-4 mb-3">
-            <h4 className="fw-bold mb-3 text-center text-primary">
-              🤖 Create a New Chatbot
-            </h4>
-
-            <form>
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Bot Name</label>
-                <input
-                  type="text"
-                  name="bot_name"
-                  className="form-control form-control-lg"
-                  placeholder="Enter bot name"
-                  value={formData.bot_name}
-                  onChange={handleChange}
+  const LoadingSkeleton = () => (
+    <div className="table-responsive">
+      <Table className="align-middle">
+        <tbody>
+          {[1, 2].map((idx) => (
+            <tr key={idx} style={{ opacity: 0.6 }}>
+              <td>
+                <div
+                  style={{
+                    height: "20px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                    marginBottom: "8px",
+                  }}
                 />
-              </div>
+              </td>
+              <td>
+                <div
+                  style={{
+                    height: "20px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                  }}
+                />
+              </td>
+              <td>
+                <div
+                  style={{
+                    height: "20px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                  }}
+                />
+              </td>
+              <td>
+                <div
+                  style={{
+                    height: "20px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                  }}
+                />
+              </td>
+              <td>
+                <div
+                  style={{
+                    height: "32px",
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  );
 
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Description</label>
-                <textarea
-                  name="description"
-                  className="form-control form-control-lg"
-                  rows="2"
-                  placeholder="Enter bot description"
-                  value={formData.description}
-                  onChange={handleChange}
-                ></textarea>
-              </div>
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
-              {error && <div className="alert alert-danger py-2">{error}</div>}
-
-              <button
-                onClick={handleCreate}
-                className="btn btn-primary w-100 py-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    Saving...
-                  </>
-                ) : (
-                  "Create Bot"
-                )}
-              </button>
-            </form>
+  return (
+    <div className="bot-list-container container-fluid">
+      <div className="row justify-content-center">
+        <div className="col-lg-10">
+          {/* Header Section */}
+          <div className="bot-list-header mb-5">
+            <div className="header-content">
+              <h1 className="fw-bold mb-2">Your Creative Bots</h1>
+              <p className="text-muted">Manage and interact with your SkitSmith chatbots</p>
+            </div>
           </div>
 
-          <div className="card shadow-sm p-4 py-3 rounded-4">
-            <h5 className="fw-bold mb-3 text-secondary">All Chatbots</h5>
+          {loading ? (
+            <LoadingSkeleton />
+          ) : error ? (
+            <div className="alert alert-danger alert-dismissible fade show" role="alert">
+              <strong>Error:</strong> {error}
+              <button
+                className="btn btn-sm btn-outline-danger ms-2"
+                onClick={fetchAllChatBots}
+              >
+                Retry
+              </button>
+            </div>
+          ) : bots.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📝</div>
+              <p className="empty-state-text">No bots available yet</p>
+              <p className="empty-state-subtext">Create your first bot to get started</p>
+            </div>
+          ) : (
+            <>
+              {/* Bots Grid */}
+              <div className="bots-grid">
+                {currentBots.map((bot, index) => (
+                  <div key={bot._id["$oid"]} className="bot-card">
+                    <div className="bot-card-header">
+                      <div className="bot-info">
+                        <h5 className="bot-name">{bot?.bot_name}</h5>
+                        <p className="bot-description">{bot?.description || "No description provided"}</p>
+                      </div>
+                      <div className="bot-badge">#{indexOfFirstBot + index + 1}</div>
+                    </div>
 
-            {bots.length === 0 ? (
-              <p className="text-muted text-center mb-0">
-                No bots created yet.
-              </p>
-            ) : (
-              <>
-                <div className="table-responsive">
-                  <Table hover className="align-middle">
-                    <thead className="table-light">
-                      <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Created At</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentBots.map((bot, index) => (
-                        <tr key={bot._id["$oid"]}>
-                          <td>{indexOfFirstBot + index + 1}</td>
-                          <td className="fw-semibold">{bot?.bot_name}</td>
-                          <td>{bot?.description}</td>
-                          <td>{bot?.created_at["$date"]}</td>
-                          <td>
-                            <div className="d-flex gap-2">
-                              <Button
-                                onClick={() => {
-                                  goToPage(
-                                    "/default/doc-upload",
-                                    bot._id["$oid"],
-                                    bot.namespace_id
-                                  );
-                                }}
-                                size="sm"
-                                variant="outline-primary"
-                              >
-                                Upload Doc
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  goToPage(
-                                    "/default/chat",
-                                    bot._id["$oid"],
-                                    bot.namespace_id
-                                  );
-                                }}
-                                size="sm"
-                                variant="outline-danger"
-                              >
-                                Chat
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                    <div className="bot-card-body">
+                      <div className="bot-meta">
+                        <div className="meta-item">
+                          <span className="meta-label">Created</span>
+                          <span className="meta-value">{formatDate(bot?.created_at["$date"])}</span>
+                        </div>
+                        <div className="meta-item">
+                          <span className="meta-label">Bot ID</span>
+                          <span className="meta-value bot-id">{bot._id["$oid"].substring(0, 8)}...</span>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* Pagination */}
-                {totalPages > 0 && (
-                  <Pagination size="sm" className="justify-content-end mt-3">
+                    <div className="bot-card-footer">
+                      <Button
+                        onClick={() => {
+                          goToPage(
+                            "/default/doc-upload",
+                            bot._id["$oid"],
+                            bot.namespace_id
+                          );
+                        }}
+                        className="btn-action btn-upload"
+                      >
+                        <span className="btn-icon">📤</span> Upload Doc
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          goToPage(
+                            "/default/chat",
+                            bot._id["$oid"],
+                            bot.namespace_id
+                          );
+                        }}
+                        className="btn-action btn-chat"
+                      >
+                        <span className="btn-icon">💬</span> Chat Now
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination-container mt-5">
+                  <Pagination className="pagination-custom">
                     <Pagination.First
                       onClick={() => paginate(1)}
                       disabled={currentPage === 1}
@@ -247,10 +273,10 @@ const BotList = () => {
                       disabled={currentPage === totalPages}
                     />
                   </Pagination>
-                )}
-              </>
-            )}
-          </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,10 +1,11 @@
 from datetime import timedelta
 import os
 from models.dto import UpdateUser
-from models.schemas import User  
+from models.schemas import User, KnowledgeBot  
 from utils.success import result,success,error
 from bson import ObjectId
 import bcrypt
+import uuid
 
 
 class UserQueries:
@@ -18,6 +19,17 @@ class UserQueries:
              return error('User already exist')
         userData = User(**user.dict())      
         userData.save()
+        
+        # Create default skitsmith chatbot for new user
+        namespace_id = str(uuid.uuid4())
+        default_bot = KnowledgeBot(
+            user_id=userData.id,
+            bot_name="skitsmith",
+            namespace_id=namespace_id,
+            description="Default SkitSmith Chatbot"
+        )
+        default_bot.save()
+        
         return success("User registered successfully!")
 
     async def get_all_users(self):

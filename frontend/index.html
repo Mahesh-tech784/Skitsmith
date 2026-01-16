@@ -4,7 +4,68 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>chat-bot</title>
+    <title>SkitSmith - Chat Bot</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body, #root {
+        background: #0d0d0d;
+        color: #ececec;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Override Bootstrap defaults for dark theme */
+      .btn-primary {
+        background: #10a37f;
+        border-color: #10a37f;
+        color: #fff;
+      }
+
+      .btn-primary:hover {
+        background: #0e9670;
+        border-color: #0e9670;
+      }
+
+      .form-control {
+        background: #2d2d2d;
+        color: #ececec;
+        border: 1px solid #565758;
+      }
+
+      .form-control:focus {
+        background: #2d2d2d;
+        color: #ececec;
+        border-color: #10a37f;
+        box-shadow: 0 0 0 0.25rem rgba(16, 163, 127, 0.1);
+      }
+
+      .form-control::placeholder {
+        color: #989898;
+      }
+
+      .table {
+        color: #ececec;
+        border-color: #373737;
+      }
+
+      .table > tbody > tr > td,
+      .table > thead > tr > th {
+        border-color: #373737;
+      }
+
+      .table > tbody > tr:hover {
+        background: #2d2d2d;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
